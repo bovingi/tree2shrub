@@ -1,0 +1,84 @@
+---
+title: "Both year data analysis"
+author: "Indra Boving"
+date: "2023-03-13"
+output: html_document
+---
+
+```{r}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(here)
+library(lubridate)
+library(janitor)
+```
+
+```{r}
+fct_case_when <- function(...) {
+  args <- as.list(match.call())
+  levels <- sapply(args[-1], function(f) f[[3]])  # extract RHS of formula
+  levels <- levels[!is.na(levels)]
+  factor(dplyr::case_when(...), levels=levels)
+}
+```
+
+Summarized by type: 
+
+```{r}
+all_2021_tree2shrub <- read_csv(here("processed-data", "xpp_2021_tree2shrub.csv"), show_col_types = FALSE)
+
+all_2014_tree2shrub <- read_csv(here("processed-data", "xpp_2014_tree2shrub.csv"), show_col_types = FALSE) %>% 
+  mutate(timing = time) %>% 
+  select(-time, -trip) %>% 
+  distinct() %>% 
+  mutate(year = 2014)
+
+both_tree2shrub <- bind_rows(all_2014_tree2shrub, all_2021_tree2shrub)
+```
+
+Summarized by spp: 
+
+```{r}
+all_2021_spp <- read_csv(here("processed-data", "xpp_2021_spp.csv"), show_col_types = FALSE)
+
+all_2014_spp<- read_csv(here("processed-data", "xpp_2014_spp.csv"), show_col_types = FALSE) %>% 
+  mutate(timing = time) %>% 
+  select(-time, -trip) %>% 
+  distinct() %>% 
+  mutate(year = 2014
+         )
+
+both_spp <- bind_rows(all_2014_spp, all_2021_spp)
+```
+
+Now visualize!
+
+From Feb. 2023 meeting: Rate of change. Scattarplot of trees/shrubs with time and Predawn–  How do shrub and tree slopes differ? Get 2014 we see a plunge and more gradual in 2021- but reach the same seasonal low.
+
+```{r}
+both_tree2shrub %>% 
+  filter(timing == "predawn") %>% 
+  drop_na(type) %>% 
+  ggplot(aes(y = mpa_mean, 
+             x = date, 
+             color = type)) +
+  geom_jitter()+
+  facet_wrap(~year, scales = "free_x") +
+  labs(y = "Predawn", 
+       x = "Date")
+```
+
+```{r}
+both_tree2shrub %>% 
+  filter(timing == "midday") %>% 
+  drop_na(type) %>% 
+  ggplot(aes(y = mpa_mean, 
+             x = date, 
+             color = type)) +
+  geom_jitter()+
+  facet_wrap(~year, scales = "free_x") +
+  labs(y = "Predawn", 
+       x = "Date")
+```
+

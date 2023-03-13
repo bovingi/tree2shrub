@@ -1,0 +1,123 @@
+---
+title: "Combining 2020 and 2014 data into analysis ready dataset"
+author: "Indra Boving"
+date: "2023-03-13"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+library(here)
+library(lubridate)
+library(janitor)
+```
+
+```{r}
+fct_case_when <- function(...) {
+  args <- as.list(match.call())
+  levels <- sapply(args[-1], function(f) f[[3]])  # extract RHS of formula
+  levels <- levels[!is.na(levels)]
+  factor(dplyr::case_when(...), levels=levels)
+}
+```
+
+```{r}
+pd_2014 <- read_csv(here("raw-data", "predawn-xpp.csv"),show_col_types = FALSE) %>% 
+  mutate(date = mdy(date), 
+         month = month(date), 
+         day = day(date), 
+         mpa = prexppmpa, 
+         time = "predawn") %>% 
+  select(-prexppmpa)
+
+md_2014 <- read_csv(here("raw-data", "midday-xpp.csv"),show_col_types = FALSE) %>% 
+  mutate(date = mdy(date), 
+         month = month(date),
+         species = spp, 
+         mpa = midxpp, 
+         time = "midday") %>% 
+  select(-spp, -midxpp)
+
+mpa_2014 <- bind_rows(pd_2014, md_2014)
+```
+
+Summarize by type: 
+
+```{r}
+mpa_2014_summarized <- mpa_2014 %>% 
+  mutate(type = case_when(
+    species %in% c("arpa", "ceco") ~ "shrub", 
+    species %in% c("abco", "cade") ~ "tree", 
+    TRUE ~ as.character(species)
+  )) %>% 
+  mutate(month_char = month(date,label=TRUE), 
+         day = day(date)) %>%  
+  mutate(month_split = fct_case_when(
+    month %in% 4 & day < 15 ~ "early April", 
+    month %in% 4 & day >= 15 ~ "late April", 
+     month %in% 5 & day < 15 ~ "early May", 
+    month %in% 5 & day >= 15 ~ "late May", 
+    month %in% 6 & day < 15 ~ "early June", 
+    month %in% 6 & day >= 15 ~ "late June", 
+    month %in% 7 & day < 15 ~ "early July", 
+    month %in% 7 & day >= 15 ~ "late July", 
+    month %in% 8 & day < 15 ~ "early August", 
+    month %in% 8 & day >= 15 ~ "late August",
+    month %in% 9 & day < 15 ~ "early Sept.", 
+    month %in% 9 & day >= 15 ~ "late Sept.", 
+    month %in% 10 & day < 15 ~ "early Oct.", 
+    month %in% 10 & day >= 15 ~ "late Oct.", 
+    TRUE ~ "month"
+  )) %>%   
+  select(-species, -pod) %>% 
+  group_by(month_split, type, time) %>% 
+  mutate(mpa_mean = mean(mpa, na.rm = T), 
+         mpa_sd = sd(mpa, na.rm = T), 
+         mpa_se = plotrix::std.error(mpa)) %>% 
+  ungroup() %>% 
+  select(-mpa, -site, -rep) %>% 
+  distinct() 
+
+write_csv(mpa_2014_summarized, here("processed-data", "xpp_2014_tree2shrub.csv"))
+```
+
+
+Summarize by species: 
+
+```{r}
+mpa_2014_summarized_spp <- mpa_2014 %>% 
+  mutate(type = case_when(
+    species %in% c("arpa", "ceco") ~ "shrub", 
+    species %in% c("abco", "cade") ~ "tree", 
+    TRUE ~ as.character(species)
+  )) %>% 
+  mutate(month_char = month(date,label=TRUE), 
+         day = day(date)) %>%  
+  mutate(month_split = fct_case_when(
+    month %in% 4 & day < 15 ~ "early April", 
+    month %in% 4 & day >= 15 ~ "late April", 
+     month %in% 5 & day < 15 ~ "early May", 
+    month %in% 5 & day >= 15 ~ "late May", 
+    month %in% 6 & day < 15 ~ "early June", 
+    month %in% 6 & day >= 15 ~ "late June", 
+    month %in% 7 & day < 15 ~ "early July", 
+    month %in% 7 & day >= 15 ~ "late July", 
+    month %in% 8 & day < 15 ~ "early August", 
+    month %in% 8 & day >= 15 ~ "late August",
+    month %in% 9 & day < 15 ~ "early Sept.", 
+    month %in% 9 & day >= 15 ~ "late Sept.", 
+    month %in% 10 & day < 15 ~ "early Oct.", 
+    month %in% 10 & day >= 15 ~ "late Oct.", 
+    TRUE ~ "month"
+  )) %>%   
+  group_by(month_split, species, time) %>% 
+  mutate(mpa_mean = mean(mpa, na.rm = T), 
+         mpa_sd = sd(mpa, na.rm = T), 
+         mpa_se = plotrix::std.error(mpa)) %>% 
+  ungroup() %>% 
+  select(-mpa, -site, -rep, -pod) %>% 
+  distinct() 
+
+write_csv(mpa_2014_summarized_spp, here("processed-data", "xpp_2014_spp.csv"))
+```
+
