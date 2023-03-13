@@ -32,24 +32,40 @@ all_2014_tree2shrub <- read_csv(here("processed-data", "xpp_2014_tree2shrub.csv"
   mutate(timing = time) %>% 
   select(-time, -trip) %>% 
   distinct() %>% 
-  mutate(year = 2014)
+  mutate(year = 2014) %>% 
+  drop_na(type)
 
-both_tree2shrub <- bind_rows(all_2014_tree2shrub, all_2021_tree2shrub)
+both_tree2shrub <- bind_rows(all_2014_tree2shrub, all_2021_tree2shrub) 
+
+both_tree2shrub_wide <- both_tree2shrub %>% 
+  select(-date) %>% 
+  pivot_wider(names_from = "timing", 
+              values_from = c("mpa_mean", "mpa_sd", "mpa_se"))
 ```
 
 Summarized by spp: 
 
 ```{r}
-all_2021_spp <- read_csv(here("processed-data", "xpp_2021_spp.csv"), show_col_types = FALSE)
+all_2021_spp <- read_csv(here("processed-data", "xpp_2021_spp.csv"), show_col_types = FALSE) %>% 
+  mutate(species = spp) %>% 
+  select(-spp)
 
 all_2014_spp<- read_csv(here("processed-data", "xpp_2014_spp.csv"), show_col_types = FALSE) %>% 
   mutate(timing = time) %>% 
   select(-time, -trip) %>% 
   distinct() %>% 
-  mutate(year = 2014
-         )
+  mutate(year = 2014,
+         )%>% 
+  drop_na(type)
 
-both_spp <- bind_rows(all_2014_spp, all_2021_spp)
+both_spp <- bind_rows(all_2014_spp, all_2021_spp) %>% 
+  mutate(species = tolower(species))
+
+
+both_spp_wide <- both_spp %>% 
+  select(-date) %>% 
+  pivot_wider(names_from = "timing", 
+              values_from = c("mpa_mean", "mpa_sd", "mpa_se"))
 ```
 
 Now visualize!
@@ -63,6 +79,7 @@ both_tree2shrub %>%
   ggplot(aes(y = mpa_mean, 
              x = date, 
              color = type)) +
+  geom_smooth(method = "lm", se = F) +
   geom_jitter()+
   facet_wrap(~year, scales = "free_x") +
   labs(y = "Predawn", 
@@ -76,9 +93,36 @@ both_tree2shrub %>%
   ggplot(aes(y = mpa_mean, 
              x = date, 
              color = type)) +
+  geom_smooth(method = "lm", se = F) +
   geom_jitter()+
   facet_wrap(~year, scales = "free_x") +
   labs(y = "Predawn", 
        x = "Date")
+```
+Hydroscapes: 
+
+```{r}
+both_tree2shrub_wide  %>% 
+  ggplot(aes(x = mpa_mean_predawn, 
+             y = mpa_mean_midday, 
+             color = type)) +
+  geom_jitter()+
+  facet_wrap(~type, scales = "free") +
+  labs(x = "Predawn", 
+       y = "Midday") +
+  geom_abline()
+  
+
+both_spp_wide  %>% 
+  ggplot(aes(x = mpa_mean_predawn, 
+             y = mpa_mean_midday, 
+             color = type, 
+             shape = as.factor(year))) +
+  geom_jitter()+
+  facet_wrap(~species, scales = "free") +
+  labs(x = "Predawn", 
+       y = "Midday") +
+  geom_abline()
+  
 ```
 
